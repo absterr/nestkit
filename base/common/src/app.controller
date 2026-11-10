@@ -1,0 +1,18 @@
+import { Controller, Get } from "@nestjs/common";
+import { AppService } from "./app.service";
+
+@Controller()
+export class AppController {
+  {% if typescript %}
+  constructor(private readonly appService: AppService) {}
+  {% else %}
+  constructor(appService) {
+    this.appService = appService;
+  }
+  {% endif %}
+
+  @Get()
+  getHello(){% if typescript %}: string{% endif %} {
+    return this.appService.getHello();
+  }
+}

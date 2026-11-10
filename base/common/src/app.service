@@ -1,0 +1,8 @@
+import { Injectable } from "@nestjs/common";
+
+@Injectable()
+export class AppService {
+  getHello(){% if typescript %}: string{% endif %} {
+    return "Hello World!";
+  }
+}
