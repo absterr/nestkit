@@ -1,0 +1,34 @@
+import eslint from "@eslint/js";
+import babelParser from "@babel/eslint-parser";
+import eslintPluginPrettierRecommended from "eslint-plugin-prettier/recommended";
+import globals from "globals";
+
+export default [
+  {
+    ignores: ["eslint.config.mjs", "dist/**"],
+  },
+  eslint.configs.recommended,
+  eslintPluginPrettierRecommended,
+  {
+    languageOptions: {
+      parser: babelParser,
+      parserOptions: {
+        requireConfigFile: false,
+        babelOptions: {
+          plugins: [
+            ["@babel/plugin-proposal-decorators", { version: "legacy" }],
+          ],
+        },
+      },
+      globals: {
+        ...globals.node,
+      },
+      sourceType: "module",
+    },
+  },
+  {
+    rules: {
+      "prettier/prettier": ["error", { endOfLine: "auto" }],
+    },
+  },
+];
