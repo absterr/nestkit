@@ -1,8 +1,0 @@
-{
-  "watch": ["src"],
-  "ext": "js",
-  "exec": "babel src --out-dir dist && node dist/main.js",
-  "events": {
-    "start": "node -e \"console.clear()\""
-  }
-}
