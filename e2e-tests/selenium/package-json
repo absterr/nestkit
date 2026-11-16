@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "test:e2e": "start-server-and-test start http-get://127.0.0.1:3000 \"vitest run --config test/vitest.config.e2e.mjs\""
+  },
+  "devDependencies": {
+    "@types/selenium-webdriver": "^4.35.7",
+    "selenium-webdriver": "^4.51.0",
+    "start-server-and-test": "^3.0.13"
+  }
+}
