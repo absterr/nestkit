@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "zod": "^4.6.7"
+  }
+}
