@@ -1,9 +1,8 @@
 {
   "scripts": {
-    "test:e2e": "start-server-and-test start http-get://127.0.0.1:3000 'playwright test'"
+    "test:e2e": "node scripts/test-e2e.mjs \"playwright test -c test/playwright.config.mjs\"",
   },
   "devDependencies": {
-    "@playwright/test": "^1.65.1",
-    "start-server-and-test": "^3.0.13"
+    "@playwright/test": "^1.65.1"
   }
 }

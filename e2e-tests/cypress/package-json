@@ -1,10 +1,9 @@
 {
   "scripts": {
-    "test:e2e": "start-server-and-test start http-get://127.0.0.1:3000 \"cypress run --config-file test/cypress.config.mjs\"",
-    "test:e2e:cypress:open": "start-server-and-test start http-get://127.0.0.1:3000 \"cypress open --config-file test/cypress.config.mjs\""
+    "test:e2e": "node scripts/test-e2e.mjs \"cypress run --config-file test/cypress.config.mjs\"",
+    "test:e2e:cypress:open": "node scripts/test-e2e.mjs \"cypress open --config-file test/cypress.config.mjs\""
   },
   "devDependencies": {
-    "cypress": "^16.3.0",
-    "start-server-and-test": "^3.0.13"
+    "cypress": "^16.3.0"
   }
 }

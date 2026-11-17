@@ -1,0 +1,5 @@
+{
+  "scripts": {
+    "test:e2e": "node scripts/e2e.mjs \"mocha --config ./test/.mocharc.e2e.json\""
+  }
+}
