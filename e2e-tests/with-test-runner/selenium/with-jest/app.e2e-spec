@@ -14,7 +14,9 @@ describe("App (Selenium E2E)", () => {
   it("GET /", async () => {
     if (!driver) throw new Error("WebDriver was not initialized");
 
-    await driver.get("http://127.0.0.1:3000/");
+    const baseURL =
+      process.env.BASE_URL ?? `http://127.0.0.1:${process.env.PORT ?? "3000"}`;
+    await driver.get(baseURL);
 
     const body = await driver.findElement(By.css("body")).getText();
 
