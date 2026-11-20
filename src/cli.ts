@@ -5,10 +5,12 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import {
   CODE_QUALITY,
-  CODE_QUALITY_OVERLAYS,
   PRESETS,
+  UNIT_TESTS,
+  overlaysFor,
   type CodeQuality,
   type Preset,
+  type UnitTests,
 } from "./options.js";
 import {
   detectInstalled,
@@ -24,8 +26,15 @@ import {
   install,
 } from "./scaffold.js";
 
-const USAGE =
-  "Usage: nestkit new [directory] [--pm npm|pnpm|yarn|bun] [--preset base|custom] [--code-quality biome|eslint|oxlint|none] [--git|--skip-git] [--skip-install]";
+const USAGE = [
+  "Usage: nestkit new [directory]",
+  "[--pm npm|pnpm|yarn|bun]",
+  "[--preset base|custom]",
+  "[--code-quality biome|eslint|oxlint|none]",
+  "[--unit-tests jest|vitest|mocha|none]",
+  "[--git|--skip-git]",
+  "[--skip-install]",
+].join(" ");
 
 function fail(message: string): never {
   p.cancel(message);
@@ -63,6 +72,7 @@ const { positionals, values } = parseArgs({
     pm: { type: "string" },
     preset: { type: "string" },
     "code-quality": { type: "string" },
+    "unit-tests": { type: "string" },
     git: { type: "boolean" },
     "skip-git": { type: "boolean" },
     "skip-install": { type: "boolean" },
@@ -118,7 +128,7 @@ if (existsSync(target) && readdirSync(target).length > 0) {
 
 let preset: Preset;
 if (values.preset) preset = oneOf("preset", values.preset, PRESETS);
-else if (values["code-quality"]) preset = "custom";
+else if (values["code-quality"] || values["unit-tests"]) preset = "custom";
 else if (!process.stdin.isTTY) preset = "base";
 else {
   preset = ensure(
@@ -149,6 +159,23 @@ if (values["code-quality"]) {
   );
 }
 
+let unitTests: UnitTests = "none";
+if (values["unit-tests"]) {
+  unitTests = oneOf("unit-tests", values["unit-tests"], UNIT_TESTS);
+} else if (preset === "custom" && process.stdin.isTTY) {
+  unitTests = ensure(
+    await p.select<UnitTests>({
+      message: "Unit tests",
+      options: [
+        { value: "jest", label: "Jest" },
+        { value: "vitest", label: "Vitest" },
+        { value: "mocha", label: "Mocha" },
+        { value: "none", label: "None" },
+      ],
+    })
+  );
+}
+
 const hasGit = gitInstalled();
 if (!hasGit && !values["skip-git"]) {
   p.log.warn("git not found, skipping repository setup.");
@@ -166,7 +193,7 @@ const useInstall = !values["skip-install"];
 
 const projectName = path.basename(target).toLowerCase().replace(/\s+/g, "-");
 copyBase(target, projectName);
-for (const overlay of CODE_QUALITY_OVERLAYS[codeQuality]) {
+for (const overlay of overlaysFor({ codeQuality, unitTests })) {
   applyOverlay(overlay, target);
 }
 

@@ -1,0 +1,5 @@
+{
+  "require": ["reflect-metadata", "ts-node/register"],
+  "extension": ["ts"],
+  "spec": ["src/**/*.spec.ts"]
+}
