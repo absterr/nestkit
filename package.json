@@ -1,0 +1,28 @@
+{
+  "name": "nestkit",
+  "version": "0.0.1",
+  "description": "Scaffold NestJS projects with your own stack",
+  "type": "module",
+  "bin": {
+    "nestkit": "dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.9.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.5",
+    "typescript": "^6.0.3"
+  },
+  "license": "MIT"
+}
