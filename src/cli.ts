@@ -1,23 +1,31 @@
 #!/usr/bin/env node
+import * as p from "@clack/prompts";
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import * as p from "@clack/prompts";
+import {
+  CODE_QUALITY,
+  CODE_QUALITY_OVERLAYS,
+  PRESETS,
+  type CodeQuality,
+  type Preset,
+} from "./options.js";
 import {
   detectInstalled,
   invokedBy,
   type PackageManager,
 } from "./package-managers.js";
 import {
+  applyOverlay,
   copyBase,
+  gitInstalled,
   initGit,
   insideGitRepo,
   install,
-  gitInstalled,
 } from "./scaffold.js";
 
 const USAGE =
-  "Usage: nestkit new [directory] [--pm npm|pnpm|yarn|bun] [--git|--skip-git] [--skip-install]";
+  "Usage: nestkit new [directory] [--pm npm|pnpm|yarn|bun] [--preset base|custom] [--code-quality biome|eslint|oxlint|none] [--git|--skip-git] [--skip-install]";
 
 function fail(message: string): never {
   p.cancel(message);
@@ -27,6 +35,16 @@ function fail(message: string): never {
 function ensure<T>(value: T): Exclude<T, symbol> {
   if (p.isCancel(value)) fail("Cancelled.");
   return value as Exclude<T, symbol>;
+}
+
+function oneOf<T extends string>(
+  flag: string,
+  value: string,
+  valid: readonly T[]
+): T {
+  const match = valid.find((v) => v === value);
+  if (!match) fail(`Invalid --${flag} "${value}". Use: ${valid.join(", ")}`);
+  return match;
 }
 
 async function decide(
@@ -43,6 +61,8 @@ const { positionals, values } = parseArgs({
   allowPositionals: true,
   options: {
     pm: { type: "string" },
+    preset: { type: "string" },
+    "code-quality": { type: "string" },
     git: { type: "boolean" },
     "skip-git": { type: "boolean" },
     "skip-install": { type: "boolean" },
@@ -96,6 +116,39 @@ if (existsSync(target) && readdirSync(target).length > 0) {
   fail(`${target} is not empty.`);
 }
 
+let preset: Preset;
+if (values.preset) preset = oneOf("preset", values.preset, PRESETS);
+else if (values["code-quality"]) preset = "custom";
+else if (!process.stdin.isTTY) preset = "base";
+else {
+  preset = ensure(
+    await p.select<Preset>({
+      message: "Preset",
+      options: [
+        { value: "base", label: "Base", hint: "plain NestJS, no extras" },
+        { value: "custom", label: "Custom", hint: "choose your tools" },
+      ],
+    })
+  );
+}
+
+let codeQuality: CodeQuality = "none";
+if (values["code-quality"]) {
+  codeQuality = oneOf("code-quality", values["code-quality"], CODE_QUALITY);
+} else if (preset === "custom" && process.stdin.isTTY) {
+  codeQuality = ensure(
+    await p.select<CodeQuality>({
+      message: "Linting and formatting",
+      options: [
+        { value: "biome", label: "Biome", hint: "lint + format" },
+        { value: "eslint", label: "ESLint + Prettier" },
+        { value: "oxlint", label: "Oxlint + Prettier" },
+        { value: "none", label: "None" },
+      ],
+    })
+  );
+}
+
 const hasGit = gitInstalled();
 if (!hasGit && !values["skip-git"]) {
   p.log.warn("git not found, skipping repository setup.");
@@ -109,11 +162,13 @@ const useGit =
     values["skip-git"],
     "Initialize a git repository?"
   ));
-
 const useInstall = !values["skip-install"];
 
 const projectName = path.basename(target).toLowerCase().replace(/\s+/g, "-");
 copyBase(target, projectName);
+for (const overlay of CODE_QUALITY_OVERLAYS[codeQuality]) {
+  applyOverlay(overlay, target);
+}
 
 if (useInstall) {
   p.log.step(`Installing dependencies with ${pm}`);
