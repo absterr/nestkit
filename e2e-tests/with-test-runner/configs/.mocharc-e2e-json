@@ -1,5 +1,0 @@
-{
-  "require": ["reflect-metadata", "ts-node/register"],
-  "extension": ["ts"],
-  "spec": ["test/**/*.e2e-spec.ts"]
-}

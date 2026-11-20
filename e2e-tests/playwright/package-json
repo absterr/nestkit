@@ -1,8 +1,0 @@
-{
-  "scripts": {
-    "test:e2e": "node scripts/test-e2e.mjs \"playwright test -c test/playwright.config.mjs\"",
-  },
-  "devDependencies": {
-    "@playwright/test": "^1.65.1"
-  }
-}

@@ -1,9 +1,0 @@
-{
-  "scripts": {
-    "format": "prettier \"{src,test}/**/*.{js,ts,json}\" --write",
-    "format:check": "prettier \"{src,test}/**/*.{js,ts,json}\" --check"
-  },
-  "devDependencies": {
-    "prettier": "^3.4.2"
-  }
-}

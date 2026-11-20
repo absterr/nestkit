@@ -1,5 +1,0 @@
-{
-  "scripts": {
-    "test:e2e": "vitest run --config ./test/vitest.config.e2e.mjs"
-  }
-}
