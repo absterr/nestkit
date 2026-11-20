@@ -8,10 +8,16 @@ import {
   invokedBy,
   type PackageManager,
 } from "./package-managers.js";
-import { copyBase, initGit, install } from "./scaffold.js";
+import {
+  copyBase,
+  initGit,
+  insideGitRepo,
+  install,
+  gitInstalled,
+} from "./scaffold.js";
 
 const USAGE =
-  "Usage: nestkit new [directory] [--pm npm|pnpm|yarn|bun] [--skip-install] [--skip-git]";
+  "Usage: nestkit new [directory] [--pm npm|pnpm|yarn|bun] [--git|--skip-git] [--skip-install]";
 
 function fail(message: string): never {
   p.cancel(message);
@@ -23,12 +29,23 @@ function ensure<T>(value: T): Exclude<T, symbol> {
   return value as Exclude<T, symbol>;
 }
 
+async function decide(
+  yes: boolean | undefined,
+  skip: boolean | undefined,
+  message: string
+): Promise<boolean> {
+  if (skip) return false;
+  if (yes || !process.stdin.isTTY) return true;
+  return ensure(await p.confirm({ message, initialValue: true }));
+}
+
 const { positionals, values } = parseArgs({
   allowPositionals: true,
   options: {
     pm: { type: "string" },
-    "skip-install": { type: "boolean" },
+    git: { type: "boolean" },
     "skip-git": { type: "boolean" },
+    "skip-install": { type: "boolean" },
   },
 });
 
@@ -79,21 +96,39 @@ if (existsSync(target) && readdirSync(target).length > 0) {
   fail(`${target} is not empty.`);
 }
 
+const hasGit = gitInstalled();
+if (!hasGit && !values["skip-git"]) {
+  p.log.warn("git not found, skipping repository setup.");
+}
+
+const useGit =
+  hasGit &&
+  !insideGitRepo(target) &&
+  (await decide(
+    values.git,
+    values["skip-git"],
+    "Initialize a git repository?"
+  ));
+
+const useInstall = !values["skip-install"];
+
 const projectName = path.basename(target).toLowerCase().replace(/\s+/g, "-");
 copyBase(target, projectName);
 
-if (!values["skip-install"]) {
+if (useInstall) {
   p.log.step(`Installing dependencies with ${pm}`);
   if (!install(pm, target))
     p.log.warn(`${pm} install failed, run it manually.`);
 }
 
-if (!values["skip-git"] && !initGit(target)) {
+if (useGit && !initGit(target)) {
   p.log.warn("Could not initialize a git repository.");
 }
 
 const relative = path.relative(process.cwd(), target);
-const steps = [relative && `cd ${relative}`, `${pm} run start:dev`].filter(
-  Boolean
-);
+const steps = [
+  relative && `cd ${relative}`,
+  !useInstall && `${pm} install`,
+  `${pm} run start:dev`,
+].filter(Boolean);
 p.outro(`Done. Next:\n  ${steps.join("\n  ")}`);
