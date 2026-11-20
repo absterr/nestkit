@@ -1,0 +1,12 @@
+{
+  "scripts": {
+    "test:e2e": "node scripts/test-e2e.mjs \"cypress run --config-file test/cypress.config.mjs\"",
+    "test:e2e:cypress:open": "node scripts/test-e2e.mjs \"cypress open --config-file test/cypress.config.mjs\""
+  },
+  "devDependencies": {
+    "cypress": "^16.3.0"
+  },
+  "trustedDependencies": [
+    "cypress"
+  ]
+}

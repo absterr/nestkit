@@ -3,10 +3,5 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage"
-  },
-  "devDependencies": {
-    "@types/jest": "^30.0.0",
-    "jest": "^30.0.0",
-    "ts-jest": "^29.2.5"
   }
 }
