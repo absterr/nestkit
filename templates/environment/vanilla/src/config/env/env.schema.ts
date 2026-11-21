@@ -1,0 +1,26 @@
+// Add environment variables types and rules here
+export const envSchema = {
+  NODE_ENV: {
+    default: "development" as const,
+    validate: (value: unknown) =>
+      ["development", "production", "test"].includes(String(value)),
+  },
+  PORT: {
+    default: 3000,
+    validate: (value: unknown) => {
+      const port = Number(value);
+      return Number.isInteger(port) && port >= 1 && port <= 65535;
+    },
+    transform: Number,
+  },
+};
+
+type Schema = typeof envSchema;
+
+export type EnvironmentVariables = {
+  [K in keyof Schema]: Schema[K]["default"] extends string
+    ? Schema[K]["default"] extends "development"
+      ? "development" | "production" | "test"
+      : Schema[K]["default"]
+    : number;
+};

@@ -19,10 +19,18 @@ export const E2E = [
 ] as const;
 export type E2e = (typeof E2E)[number];
 
+export const ENV = [
+  "joi",
+  "class-validator",
+  "zod",
+  "vanilla",
+  "none",
+] as const;
+export type Env = (typeof ENV)[number];
+
 export const needsRunner = (e2e: E2e) =>
   e2e === "supertest" || e2e === "selenium";
 
-// Prettier is shared by the eslint and oxlint paths
 const CODE_QUALITY_OVERLAYS: Record<CodeQuality, string[]> = {
   biome: ["code-quality/biome"],
   eslint: ["code-quality/prettier", "code-quality/eslint"],
@@ -38,7 +46,7 @@ const eslintVariant = (r: Runner) => `test-runners/${r}/eslint-${r}`;
 const supertestVariant = (r: Runner) => `e2e-tests/supertest/${r}-supertest`;
 const seleniumVariant = (r: Runner) => `e2e-tests/selenium/${r}-selenium`;
 
-// The parent overlay must not copy these along with its own files
+// The parent overlay MUST NOT not copy these along with its own files
 export const NESTED_OVERLAYS = RUNNERS.flatMap((r) => [
   eslintVariant(r),
   supertestVariant(r),
@@ -50,6 +58,7 @@ export function overlaysFor(s: {
   codeQuality: CodeQuality;
   unitTests: UnitTests;
   e2e: E2e;
+  env: Env;
   e2eRunner?: Runner;
 }): string[] {
   const runner = s.unitTests !== "none" ? s.unitTests : s.e2eRunner;
@@ -82,6 +91,10 @@ export function overlaysFor(s: {
   }
   if (s.e2e === "playwright" || s.e2e === "cypress") {
     overlays.push("e2e-tests/e2e-scripts", `e2e-tests/${s.e2e}`);
+  }
+
+  if (s.env !== "none") {
+    overlays.push("environment/common", `environment/${s.env}`);
   }
   return overlays;
 }

@@ -6,6 +6,7 @@ import { parseArgs } from "node:util";
 import {
   CODE_QUALITY,
   E2E,
+  ENV,
   PRESETS,
   RUNNERS,
   UNIT_TESTS,
@@ -13,6 +14,7 @@ import {
   overlaysFor,
   type CodeQuality,
   type E2e,
+  type Env,
   type Preset,
   type Runner,
   type UnitTests,
@@ -37,6 +39,9 @@ const USAGE = [
   "[--preset base|custom]",
   "[--code-quality biome|eslint|oxlint|none]",
   "[--unit-tests jest|vitest|mocha|none]",
+  "[--e2e supertest|playwright|cypress|selenium|none]",
+  "[--e2e-runner jest|vitest|mocha]",
+  "[--env joi|class-validator|zod|vanilla|none]",
   "[--git|--skip-git]",
   "[--skip-install]",
 ].join(" ");
@@ -80,6 +85,7 @@ const { positionals, values } = parseArgs({
     "unit-tests": { type: "string" },
     e2e: { type: "string" },
     "e2e-runner": { type: "string" },
+    env: { type: "string" },
     git: { type: "boolean" },
     "skip-git": { type: "boolean" },
     "skip-install": { type: "boolean" },
@@ -135,7 +141,12 @@ if (existsSync(target) && readdirSync(target).length > 0) {
 
 let preset: Preset;
 if (values.preset) preset = oneOf("preset", values.preset, PRESETS);
-else if (values["code-quality"] || values["unit-tests"] || values.e2e)
+else if (
+  values["code-quality"] ||
+  values["unit-tests"] ||
+  values.e2e ||
+  values.env
+)
   preset = "custom";
 else if (!process.stdin.isTTY) preset = "base";
 else {
@@ -230,6 +241,39 @@ if (needsRunner(e2e)) {
   }
 }
 
+let env: Env = "none";
+if (values.env) {
+  env = oneOf("env", values.env, ENV);
+} else if (preset === "custom" && process.stdin.isTTY) {
+  const wantsEnv = ensure(
+    await p.confirm({
+      message: "Add environment config with validation?",
+      initialValue: true,
+    })
+  );
+  if (wantsEnv) {
+    env = ensure(
+      await p.select<Env>({
+        message: "Validation library",
+        options: [
+          { value: "joi", label: "Joi" },
+          {
+            value: "class-validator",
+            label: "class-validator",
+            hint: "with class-transformer",
+          },
+          { value: "zod", label: "Zod" },
+          {
+            value: "vanilla",
+            label: "None",
+            hint: "plain TypeScript, no library",
+          },
+        ],
+      })
+    );
+  }
+}
+
 const hasGit = gitInstalled();
 if (!hasGit && !values["skip-git"]) {
   p.log.warn("git not found, skipping repository setup.");
@@ -247,7 +291,13 @@ const useInstall = !values["skip-install"];
 
 const projectName = path.basename(target).toLowerCase().replace(/\s+/g, "-");
 copyBase(target, projectName);
-for (const overlay of overlaysFor({ codeQuality, unitTests, e2e, e2eRunner })) {
+for (const overlay of overlaysFor({
+  codeQuality,
+  unitTests,
+  e2e,
+  e2eRunner,
+  env,
+})) {
   applyOverlay(overlay, target);
 }
 
