@@ -5,11 +5,16 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import {
   CODE_QUALITY,
+  E2E,
   PRESETS,
+  RUNNERS,
   UNIT_TESTS,
+  needsRunner,
   overlaysFor,
   type CodeQuality,
+  type E2e,
   type Preset,
+  type Runner,
   type UnitTests,
 } from "./options.js";
 import {
@@ -73,6 +78,8 @@ const { positionals, values } = parseArgs({
     preset: { type: "string" },
     "code-quality": { type: "string" },
     "unit-tests": { type: "string" },
+    e2e: { type: "string" },
+    "e2e-runner": { type: "string" },
     git: { type: "boolean" },
     "skip-git": { type: "boolean" },
     "skip-install": { type: "boolean" },
@@ -128,7 +135,8 @@ if (existsSync(target) && readdirSync(target).length > 0) {
 
 let preset: Preset;
 if (values.preset) preset = oneOf("preset", values.preset, PRESETS);
-else if (values["code-quality"] || values["unit-tests"]) preset = "custom";
+else if (values["code-quality"] || values["unit-tests"] || values.e2e)
+  preset = "custom";
 else if (!process.stdin.isTTY) preset = "base";
 else {
   preset = ensure(
@@ -176,6 +184,52 @@ if (values["unit-tests"]) {
   );
 }
 
+let e2e: E2e = "none";
+if (values.e2e) {
+  e2e = oneOf("e2e", values.e2e, E2E);
+} else if (preset === "custom" && process.stdin.isTTY) {
+  e2e = ensure(
+    await p.select<E2e>({
+      message: "End-to-end tests",
+      options: [
+        { value: "supertest", label: "Supertest", hint: "HTTP, no browser" },
+        { value: "playwright", label: "Playwright" },
+        { value: "cypress", label: "Cypress" },
+        { value: "selenium", label: "Selenium" },
+        { value: "none", label: "None" },
+      ],
+    })
+  );
+}
+
+let e2eRunner: Runner | undefined;
+if (needsRunner(e2e)) {
+  const flag = values["e2e-runner"]
+    ? oneOf("e2e-runner", values["e2e-runner"], RUNNERS)
+    : undefined;
+  if (unitTests !== "none") {
+    if (flag && flag !== unitTests) {
+      fail(`--e2e-runner ${flag} conflicts with --unit-tests ${unitTests}.`);
+    }
+    p.log.info(`Using ${unitTests} for e2e tests.`);
+  } else if (flag) {
+    e2eRunner = flag;
+  } else if (process.stdin.isTTY) {
+    e2eRunner = ensure(
+      await p.select<Runner>({
+        message: "Test runner for e2e tests",
+        options: [
+          { value: "jest", label: "Jest" },
+          { value: "vitest", label: "Vitest" },
+          { value: "mocha", label: "Mocha" },
+        ],
+      })
+    );
+  } else {
+    fail(`${e2e} needs a test runner. Pass --e2e-runner ${RUNNERS.join("|")}.`);
+  }
+}
+
 const hasGit = gitInstalled();
 if (!hasGit && !values["skip-git"]) {
   p.log.warn("git not found, skipping repository setup.");
@@ -193,7 +247,7 @@ const useInstall = !values["skip-install"];
 
 const projectName = path.basename(target).toLowerCase().replace(/\s+/g, "-");
 copyBase(target, projectName);
-for (const overlay of overlaysFor({ codeQuality, unitTests })) {
+for (const overlay of overlaysFor({ codeQuality, unitTests, e2e, e2eRunner })) {
   applyOverlay(overlay, target);
 }
 

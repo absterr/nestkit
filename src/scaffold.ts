@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import {
+  appendFileSync,
   cpSync,
   existsSync,
   readFileSync,
@@ -8,6 +9,7 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { NESTED_OVERLAYS } from "./options.js";
 import type { PackageManager } from "./package-managers.js";
 
 const TEMPLATES = fileURLToPath(new URL("../templates", import.meta.url));
@@ -38,8 +40,22 @@ export function copyBase(target: string, projectName: string): void {
 export function applyOverlay(name: string, target: string): void {
   const dir = path.join(TEMPLATES, name);
   const fragment = path.join(dir, "package.json");
-  cpSync(dir, target, { recursive: true, filter: (src) => src !== fragment });
+  const ignore = path.join(dir, "gitignore");
+  const nested = NESTED_OVERLAYS.map((n) => path.join(TEMPLATES, n)).filter(
+    (n) => n.startsWith(dir + path.sep)
+  );
+  cpSync(dir, target, {
+    recursive: true,
+    filter: (src) =>
+      src !== fragment && src !== ignore && !nested.includes(src),
+  });
   if (existsSync(fragment)) mergePackageJson(target, fragment);
+  if (existsSync(ignore)) {
+    appendFileSync(
+      path.join(target, ".gitignore"),
+      readFileSync(ignore, "utf8")
+    );
+  }
 }
 
 function mergePackageJson(target: string, fragmentPath: string): void {
