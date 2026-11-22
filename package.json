@@ -15,7 +15,8 @@
   },
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch"
+    "dev": "tsc --watch",
+    "check:templates": "node scripts/check-templates.mjs"
   },
   "dependencies": {
     "@clack/prompts": "^1.9.0"
