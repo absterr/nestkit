@@ -1,20 +1,23 @@
 #!/usr/bin/env node
-import * as p from "@clack/prompts";
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
+import * as p from "@clack/prompts";
 import {
   CODE_QUALITY,
   E2E,
   ENV,
+  MODULE_SYSTEMS,
   PRESETS,
   RUNNERS,
   UNIT_TESTS,
   needsRunner,
   overlaysFor,
+  runnersFor,
   type CodeQuality,
   type E2e,
   type Env,
+  type ModuleSystem,
   type Preset,
   type Runner,
   type UnitTests,
@@ -31,11 +34,16 @@ import {
   initGit,
   insideGitRepo,
   install,
+  retargetNest,
+  rewriteRelativeImports,
 } from "./scaffold.js";
+import { resolveNest } from "./versions.js";
 
 const USAGE = [
   "Usage: nestkit new [directory]",
   "[--pm npm|pnpm|yarn|bun]",
+  "[--nest-version latest|previous|11|12]",
+  "[--module-system cjs|esm]",
   "[--preset base|custom]",
   "[--code-quality biome|eslint|oxlint|none]",
   "[--unit-tests jest|vitest|mocha|none]",
@@ -45,6 +53,12 @@ const USAGE = [
   "[--git|--skip-git]",
   "[--skip-install]",
 ].join(" ");
+
+const RUNNER_LABELS: Record<Runner, string> = {
+  jest: "Jest",
+  vitest: "Vitest",
+  mocha: "Mocha",
+};
 
 function fail(message: string): never {
   p.cancel(message);
@@ -66,6 +80,7 @@ function oneOf<T extends string>(
   return match;
 }
 
+// Skip flag wins, then the yes flag, then the default when there is no TTY, then ask
 async function decide(
   yes: boolean | undefined,
   skip: boolean | undefined,
@@ -80,6 +95,8 @@ const { positionals, values } = parseArgs({
   allowPositionals: true,
   options: {
     pm: { type: "string" },
+    "nest-version": { type: "string" },
+    "module-system": { type: "string" },
     preset: { type: "string" },
     "code-quality": { type: "string" },
     "unit-tests": { type: "string" },
@@ -99,6 +116,14 @@ if (command !== "new" && command !== "create") {
 }
 
 p.intro("nestkit");
+
+const nestSpec = values["nest-version"] ?? "latest";
+const nest = resolveNest(nestSpec);
+if (!nest)
+  fail(
+    `Unsupported --nest-version "${nestSpec}". Use: latest, previous, 11, 12`
+  );
+p.log.info(`NestJS ${nest}${values["nest-version"] ? "" : " (latest)"}`);
 
 const installed = await detectInstalled();
 if (installed.length === 0) fail("No supported package manager found.");
@@ -146,9 +171,9 @@ else if (
   values["unit-tests"] ||
   values.e2e ||
   values.env
-)
+) {
   preset = "custom";
-else if (!process.stdin.isTTY) preset = "base";
+} else if (!process.stdin.isTTY) preset = "base";
 else {
   preset = ensure(
     await p.select<Preset>({
@@ -158,6 +183,44 @@ else {
         { value: "custom", label: "Custom", hint: "choose your tools" },
       ],
     })
+  );
+}
+
+let moduleSystem: ModuleSystem = "cjs";
+if (values["module-system"]) {
+  moduleSystem = oneOf(
+    "module-system",
+    values["module-system"],
+    MODULE_SYSTEMS
+  );
+} else if (process.stdin.isTTY) {
+  moduleSystem = ensure(
+    await p.select<ModuleSystem>({
+      message: "Module system",
+      options: [
+        { value: "cjs", label: "CommonJS" },
+        {
+          value: "esm",
+          label: "ESM",
+          hint:
+            nest === "11" ? "not officially supported by Nest 11" : undefined,
+        },
+      ],
+    })
+  );
+}
+
+// Runners that work for this Nest version and module system
+const runnerOptions = runnersFor(nest, moduleSystem).map((value) => ({
+  value,
+  label: RUNNER_LABELS[value],
+}));
+const isAvailable = (runner: Runner) =>
+  runnerOptions.some((o) => o.value === runner);
+const hidden = RUNNERS.filter((r) => !isAvailable(r));
+if (preset === "custom" && hidden.length > 0) {
+  p.log.info(
+    `Not offered for NestJS ${nest} with ${moduleSystem}: ${hidden.map((r) => RUNNER_LABELS[r]).join(", ")}.`
   );
 }
 
@@ -181,16 +244,16 @@ if (values["code-quality"]) {
 let unitTests: UnitTests = "none";
 if (values["unit-tests"]) {
   unitTests = oneOf("unit-tests", values["unit-tests"], UNIT_TESTS);
+  if (unitTests !== "none" && !isAvailable(unitTests)) {
+    fail(
+      `${unitTests} is not available for Nest ${nest} with ${moduleSystem}.`
+    );
+  }
 } else if (preset === "custom" && process.stdin.isTTY) {
   unitTests = ensure(
     await p.select<UnitTests>({
       message: "Unit tests",
-      options: [
-        { value: "jest", label: "Jest" },
-        { value: "vitest", label: "Vitest" },
-        { value: "mocha", label: "Mocha" },
-        { value: "none", label: "None" },
-      ],
+      options: [...runnerOptions, { value: "none", label: "None" }],
     })
   );
 }
@@ -213,6 +276,7 @@ if (values.e2e) {
   );
 }
 
+// Supertest and selenium need a runner: reuse the unit-test one, else ask
 let e2eRunner: Runner | undefined;
 if (needsRunner(e2e)) {
   const flag = values["e2e-runner"]
@@ -224,16 +288,15 @@ if (needsRunner(e2e)) {
     }
     p.log.info(`Using ${unitTests} for e2e tests.`);
   } else if (flag) {
+    if (!isAvailable(flag)) {
+      fail(`${flag} is not available for Nest ${nest} with ${moduleSystem}.`);
+    }
     e2eRunner = flag;
   } else if (process.stdin.isTTY) {
     e2eRunner = ensure(
       await p.select<Runner>({
         message: "Test runner for e2e tests",
-        options: [
-          { value: "jest", label: "Jest" },
-          { value: "vitest", label: "Vitest" },
-          { value: "mocha", label: "Mocha" },
-        ],
+        options: runnerOptions,
       })
     );
   } else {
@@ -292,6 +355,8 @@ const useInstall = !values["skip-install"];
 const projectName = path.basename(target).toLowerCase().replace(/\s+/g, "-");
 copyBase(target, projectName);
 for (const overlay of overlaysFor({
+  nest,
+  moduleSystem,
   codeQuality,
   unitTests,
   e2e,
@@ -300,6 +365,8 @@ for (const overlay of overlaysFor({
 })) {
   applyOverlay(overlay, target);
 }
+retargetNest(target, nest);
+if (moduleSystem === "esm") rewriteRelativeImports(target);
 
 if (useInstall) {
   p.log.step(`Installing dependencies with ${pm}`);

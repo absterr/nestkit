@@ -4,6 +4,7 @@ import {
   cpSync,
   existsSync,
   readFileSync,
+  readdirSync,
   renameSync,
   writeFileSync,
 } from "node:fs";
@@ -11,6 +12,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { NESTED_OVERLAYS } from "./options.js";
 import type { PackageManager } from "./package-managers.js";
+import { RANGES, type NestMajor } from "./versions.js";
 
 const TEMPLATES = fileURLToPath(new URL("../templates", import.meta.url));
 
@@ -27,6 +29,7 @@ const sortKeys = (obj: Json): Json =>
 export function copyBase(target: string, projectName: string): void {
   cpSync(path.join(TEMPLATES, "base"), target, { recursive: true });
 
+  // npm strips .gitignore from published packages, so it ships as "gitignore"
   renameSync(path.join(target, "gitignore"), path.join(target, ".gitignore"));
 
   const pkgPath = path.join(target, "package.json");
@@ -37,6 +40,7 @@ export function copyBase(target: string, projectName: string): void {
   writeFileSync(pkgPath, pkg);
 }
 
+// Copies the overlay's files, merges its package.json fragment and appends its gitignore
 export function applyOverlay(name: string, target: string): void {
   const dir = path.join(TEMPLATES, name);
   const fragment = path.join(dir, "package.json");
@@ -73,6 +77,35 @@ function mergePackageJson(target: string, fragmentPath: string): void {
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
+// Templates are authored for Nest 11. Point the Nest-owned packages at the chosen major.
+export function retargetNest(target: string, nest: NestMajor): void {
+  const pkgPath = path.join(target, "package.json");
+  const pkg: Json = JSON.parse(readFileSync(pkgPath, "utf8"));
+  for (const field of ["dependencies", "devDependencies"]) {
+    for (const [name, range] of Object.entries(RANGES[nest])) {
+      if (pkg[field]?.[name]) pkg[field][name] = range;
+    }
+  }
+  writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+}
+
+// ESM needs explicit extensions on relative imports. Templates are written without them.
+export function rewriteRelativeImports(target: string): void {
+  for (const rel of readdirSync(target, {
+    recursive: true,
+    encoding: "utf8",
+  })) {
+    if (!rel.endsWith(".ts")) continue;
+    const file = path.join(target, rel);
+    const src = readFileSync(file, "utf8");
+    const out = src.replace(
+      /(\bfrom\s+")(\.{1,2}\/[^"]+?)(?<!\.js)"/g,
+      '$1$2.js"'
+    );
+    if (out !== src) writeFileSync(file, out);
+  }
+}
+
 export function install(pm: PackageManager, cwd: string): boolean {
   const result = spawnSync(pm, ["install"], {
     cwd,
@@ -89,6 +122,7 @@ export function gitInstalled(): boolean {
   return git(process.cwd(), "--version");
 }
 
+// The target may not exist yet, so check from its nearest existing parent
 export function insideGitRepo(target: string): boolean {
   let dir = target;
   while (!existsSync(dir)) dir = path.dirname(dir);

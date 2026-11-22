@@ -1,5 +1,10 @@
+import type { NestMajor } from "./versions.js";
+
 export const PRESETS = ["base", "custom"] as const;
 export type Preset = (typeof PRESETS)[number];
+
+export const MODULE_SYSTEMS = ["cjs", "esm"] as const;
+export type ModuleSystem = (typeof MODULE_SYSTEMS)[number];
 
 export const CODE_QUALITY = ["biome", "eslint", "oxlint", "none"] as const;
 export type CodeQuality = (typeof CODE_QUALITY)[number];
@@ -31,6 +36,16 @@ export type Env = (typeof ENV)[number];
 export const needsRunner = (e2e: E2e) =>
   e2e === "supertest" || e2e === "selenium";
 
+// Runners that work for a Nest version and module system.
+// Mocha on Nest 12 and on ESM is added once its setup exists (pass 2).
+export function runnersFor(
+  nest: NestMajor,
+  moduleSystem: ModuleSystem
+): Runner[] {
+  return nest === "11" && moduleSystem === "cjs" ? [...RUNNERS] : ["vitest"];
+}
+
+// Prettier is shared by the eslint and oxlint paths
 const CODE_QUALITY_OVERLAYS: Record<CodeQuality, string[]> = {
   biome: ["code-quality/biome"],
   eslint: ["code-quality/prettier", "code-quality/eslint"],
@@ -46,7 +61,7 @@ const eslintVariant = (r: Runner) => `test-runners/${r}/eslint-${r}`;
 const supertestVariant = (r: Runner) => `e2e-tests/supertest/${r}-supertest`;
 const seleniumVariant = (r: Runner) => `e2e-tests/selenium/${r}-selenium`;
 
-// The parent overlay MUST NOT not copy these along with its own files
+// The parent overlay must not copy these along with its own files
 export const NESTED_OVERLAYS = RUNNERS.flatMap((r) => [
   eslintVariant(r),
   supertestVariant(r),
@@ -55,14 +70,22 @@ export const NESTED_OVERLAYS = RUNNERS.flatMap((r) => [
 
 // Overlays apply in order, so later ones overwrite earlier files
 export function overlaysFor(s: {
+  nest: NestMajor;
+  moduleSystem: ModuleSystem;
   codeQuality: CodeQuality;
   unitTests: UnitTests;
   e2e: E2e;
-  env: Env;
   e2eRunner?: Runner;
+  env: Env;
 }): string[] {
   const runner = s.unitTests !== "none" ? s.unitTests : s.e2eRunner;
-  const overlays = [...CODE_QUALITY_OVERLAYS[s.codeQuality]];
+  const overlays: string[] = [];
+
+  if (s.nest === "12") overlays.push("versions/12");
+  overlays.push(
+    `${s.moduleSystem}-module`,
+    ...CODE_QUALITY_OVERLAYS[s.codeQuality]
+  );
 
   if (runner) {
     overlays.push("test-runners/common", `test-runners/${runner}`);
