@@ -1,6 +1,5 @@
 {
   "scripts": {
-    "test": "mocha --watch",
     "test:run": "mocha",
     "test:cov": "c8 mocha"
   },

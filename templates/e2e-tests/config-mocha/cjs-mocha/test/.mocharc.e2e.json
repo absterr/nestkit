@@ -1,0 +1,5 @@
+{
+  "require": ["reflect-metadata", "@swc-node/register"],
+  "extension": ["ts"],
+  "spec": ["test/**/*.e2e-spec.ts"]
+}

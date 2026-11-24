@@ -1,0 +1,5 @@
+{
+  "node-option": ["import=@swc-node/register/esm-register"],
+  "extension": ["ts"],
+  "spec": ["src/**/*.spec.ts"]
+}
