@@ -217,12 +217,36 @@ const runnerOptions = runnersFor(nest, moduleSystem).map((value) => ({
 }));
 const isAvailable = (runner: Runner) =>
   runnerOptions.some((o) => o.value === runner);
-const hidden = RUNNERS.filter((r) => !isAvailable(r));
-if (preset === "custom" && hidden.length > 0) {
-  p.log.info(
-    `Not offered for NestJS ${nest} with ${moduleSystem}: ${hidden.map((r) => RUNNER_LABELS[r]).join(", ")}.`
+
+const MODULE_LABELS: Record<ModuleSystem, string> = {
+  cjs: "CommonJS",
+  esm: "ESM",
+};
+
+// Runners not offered for this Nest version with the given module system
+const missingFor = (system: ModuleSystem) =>
+  RUNNERS.filter((r) => !runnersFor(nest, system).includes(r));
+
+// e.g. "Jest is not available for Nest 11 with ESM". Undefined when everything is offered.
+const runnerNote = (): string | undefined => {
+  const missing = missingFor(moduleSystem);
+  if (missing.length === 0) return undefined;
+  const names = new Intl.ListFormat("en").format(
+    missing.map((r) => RUNNER_LABELS[r])
   );
-}
+  // Name the module system only when it changes what is offered
+  const sameForBoth = missingFor("cjs").join() === missingFor("esm").join();
+  const where = sameForBoth
+    ? `Nest ${nest}`
+    : `Nest ${nest} with ${MODULE_LABELS[moduleSystem]}`;
+  return `${names} ${missing.length === 1 ? "is" : "are"} not available for ${where}`;
+};
+
+// Puts the note in brackets after a runner prompt's title
+const withNote = (message: string) => {
+  const note = runnerNote();
+  return note ? `${message} (${note})` : message;
+};
 
 let codeQuality: CodeQuality = "none";
 if (values["code-quality"]) {
@@ -252,7 +276,7 @@ if (values["unit-tests"]) {
 } else if (preset === "custom" && process.stdin.isTTY) {
   unitTests = ensure(
     await p.select<UnitTests>({
-      message: "Unit tests",
+      message: withNote("Unit tests"),
       options: [...runnerOptions, { value: "none", label: "None" }],
     })
   );
@@ -295,7 +319,7 @@ if (needsRunner(e2e)) {
   } else if (process.stdin.isTTY) {
     e2eRunner = ensure(
       await p.select<Runner>({
-        message: "Test runner for e2e tests",
+        message: withNote("Test runner for e2e tests"),
         options: runnerOptions,
       })
     );
