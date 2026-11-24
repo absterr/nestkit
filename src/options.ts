@@ -46,6 +46,12 @@ export function runnersFor(
     : ["vitest", "mocha"];
 }
 
+// Runner that gets the "recommended" hint in prompts
+export const recommendedRunner = (
+  nest: NestMajor,
+  moduleSystem: ModuleSystem
+): Runner => (nest === "11" && moduleSystem === "cjs" ? "jest" : "vitest");
+
 // Packages TypeScript 6 must load for each runner's globals.
 export const RUNNER_TYPES: Record<Runner, string[]> = {
   jest: ["jest"],

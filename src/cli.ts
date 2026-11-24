@@ -14,6 +14,7 @@ import {
   UNIT_TESTS,
   needsRunner,
   overlaysFor,
+  recommendedRunner,
   runnersFor,
   type CodeQuality,
   type E2e,
@@ -213,9 +214,11 @@ if (values["module-system"]) {
 }
 
 // Runners that work for this Nest version and module system
+const recommended = recommendedRunner(nest, moduleSystem);
 const runnerOptions = runnersFor(nest, moduleSystem).map((value) => ({
   value,
   label: RUNNER_LABELS[value],
+  hint: value === recommended ? "recommended" : undefined,
 }));
 const isAvailable = (runner: Runner) =>
   runnerOptions.some((o) => o.value === runner);
