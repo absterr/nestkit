@@ -36,14 +36,22 @@ export type Env = (typeof ENV)[number];
 export const needsRunner = (e2e: E2e) =>
   e2e === "supertest" || e2e === "selenium";
 
-// Runners that work for a Nest version and module system.
-// Mocha on Nest 12 and on ESM is added once its setup exists (pass 2).
+// Runners that work for a Nest version and module system
 export function runnersFor(
   nest: NestMajor,
   moduleSystem: ModuleSystem
 ): Runner[] {
-  return nest === "11" && moduleSystem === "cjs" ? [...RUNNERS] : ["vitest"];
+  return nest === "11" && moduleSystem === "cjs"
+    ? [...RUNNERS]
+    : ["vitest", "mocha"];
 }
+
+// Packages TypeScript 6 must load for each runner's globals.
+export const RUNNER_TYPES: Record<Runner, string[]> = {
+  jest: ["jest"],
+  vitest: [],
+  mocha: ["mocha"],
+};
 
 // Prettier is shared by the eslint and oxlint paths
 const CODE_QUALITY_OVERLAYS: Record<CodeQuality, string[]> = {
@@ -61,12 +69,23 @@ const eslintVariant = (r: Runner) => `test-runners/${r}/eslint-${r}`;
 const supertestVariant = (r: Runner) => `e2e-tests/supertest/${r}-supertest`;
 const seleniumVariant = (r: Runner) => `e2e-tests/selenium/${r}-selenium`;
 
+// Mocha is configured differently per module system, so it has a folder for each
+const mochaUnit = (m: ModuleSystem) => `unit-tests/mocha/${m}-mocha`;
+const mochaConfig = (m: ModuleSystem) => `e2e-tests/config-mocha/${m}-mocha`;
+
+// Runner config for e2e tests
+const e2eConfig = (r: Runner, m: ModuleSystem) =>
+  r === "mocha" ? mochaConfig(m) : `e2e-tests/config-${r}`;
+
 // The parent overlay must not copy these along with its own files
-export const NESTED_OVERLAYS = RUNNERS.flatMap((r) => [
-  eslintVariant(r),
-  supertestVariant(r),
-  seleniumVariant(r),
-]);
+export const NESTED_OVERLAYS = [
+  ...RUNNERS.flatMap((r) => [
+    eslintVariant(r),
+    supertestVariant(r),
+    seleniumVariant(r),
+  ]),
+  ...MODULE_SYSTEMS.flatMap((m) => [mochaUnit(m), mochaConfig(m)]),
+];
 
 // Overlays apply in order, so later ones overwrite earlier files
 export function overlaysFor(s: {
@@ -81,8 +100,8 @@ export function overlaysFor(s: {
   const runner = s.unitTests !== "none" ? s.unitTests : s.e2eRunner;
   const overlays: string[] = [];
 
-  if (s.nest === "12") overlays.push("versions/12");
   overlays.push(
+    `versions/${s.nest}`,
     `${s.moduleSystem}-module`,
     ...CODE_QUALITY_OVERLAYS[s.codeQuality]
   );
@@ -95,13 +114,14 @@ export function overlaysFor(s: {
   }
   if (s.unitTests !== "none") {
     overlays.push("unit-tests/common", `unit-tests/${s.unitTests}`);
+    if (s.unitTests === "mocha") overlays.push(mochaUnit(s.moduleSystem));
   }
 
   if (s.e2e === "supertest" && runner) {
     overlays.push(
       "e2e-tests/supertest",
       supertestVariant(runner),
-      `e2e-tests/config-${runner}`
+      e2eConfig(runner, s.moduleSystem)
     );
   }
   if (s.e2e === "selenium" && runner) {
@@ -109,7 +129,7 @@ export function overlaysFor(s: {
       "e2e-tests/e2e-scripts",
       "e2e-tests/selenium",
       seleniumVariant(runner),
-      `e2e-tests/config-${runner}`
+      e2eConfig(runner, s.moduleSystem)
     );
   }
   if (s.e2e === "playwright" || s.e2e === "cypress") {

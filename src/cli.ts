@@ -1,8 +1,8 @@
 #!/usr/bin/env node
+import * as p from "@clack/prompts";
 import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import * as p from "@clack/prompts";
 import {
   CODE_QUALITY,
   E2E,
@@ -10,6 +10,7 @@ import {
   MODULE_SYSTEMS,
   PRESETS,
   RUNNERS,
+  RUNNER_TYPES,
   UNIT_TESTS,
   needsRunner,
   overlaysFor,
@@ -28,6 +29,7 @@ import {
   type PackageManager,
 } from "./package-managers.js";
 import {
+  addTsconfigTypes,
   applyOverlay,
   copyBase,
   gitInstalled,
@@ -389,6 +391,8 @@ for (const overlay of overlaysFor({
 })) {
   applyOverlay(overlay, target);
 }
+const runner = unitTests !== "none" ? unitTests : e2eRunner;
+if (runner) addTsconfigTypes(target, RUNNER_TYPES[runner]);
 retargetNest(target, nest);
 if (moduleSystem === "esm") rewriteRelativeImports(target);
 

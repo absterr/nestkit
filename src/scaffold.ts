@@ -98,12 +98,21 @@ export function rewriteRelativeImports(target: string): void {
     if (!rel.endsWith(".ts")) continue;
     const file = path.join(target, rel);
     const src = readFileSync(file, "utf8");
-    const out = src.replace(
-      /(\bfrom\s+")(\.{1,2}\/[^"]+?)(?<!\.js)"/g,
-      '$1$2.js"'
-    );
+    const out = src
+      .replace(/(\bfrom\s+")(\.{1,2}\/[^"]+?)(?<!\.js)"/g, '$1$2.js"')
+      .replace(/from "supertest\/types"/g, 'from "supertest/types.js"');
     if (out !== src) writeFileSync(file, out);
   }
+}
+
+// TypeScript 6 loads only the @types packages listed in `types`.
+export function addTsconfigTypes(target: string, types: string[]): void {
+  const file = path.join(target, "tsconfig.json");
+  const tsconfig: Json = JSON.parse(readFileSync(file, "utf8"));
+  const current: string[] | undefined = tsconfig.compilerOptions?.types;
+  if (!current || types.length === 0) return;
+  tsconfig.compilerOptions.types = [...new Set([...current, ...types])];
+  writeFileSync(file, `${JSON.stringify(tsconfig, null, 2)}\n`);
 }
 
 export function install(pm: PackageManager, cwd: string): boolean {
