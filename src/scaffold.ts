@@ -30,7 +30,9 @@ export function copyBase(target: string, projectName: string): void {
   cpSync(path.join(TEMPLATES, "base"), target, { recursive: true });
 
   // npm strips .gitignore from published packages, so it ships as "gitignore"
-  renameSync(path.join(target, "gitignore"), path.join(target, ".gitignore"));
+  for (const name of ["gitignore", "gitattributes"]) {
+    renameSync(path.join(target, name), path.join(target, `.${name}`));
+  }
 
   const pkgPath = path.join(target, "package.json");
   const pkg = readFileSync(pkgPath, "utf8").replaceAll(
