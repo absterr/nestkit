@@ -32,11 +32,13 @@ import {
 import {
   addTsconfigTypes,
   applyOverlay,
+  approveBuildScripts,
   copyBase,
   gitInstalled,
   initGit,
   insideGitRepo,
   install,
+  pnpmMajor,
   retargetNest,
   rewriteRelativeImports,
 } from "./scaffold.js";
@@ -397,6 +399,7 @@ for (const overlay of overlaysFor({
 const runner = unitTests !== "none" ? unitTests : e2eRunner;
 if (runner) addTsconfigTypes(target, RUNNER_TYPES[runner]);
 retargetNest(target, nest);
+if (pm === "pnpm") approveBuildScripts(target, pnpmMajor(target));
 if (moduleSystem === "esm") rewriteRelativeImports(target);
 
 if (useInstall) {

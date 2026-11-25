@@ -143,3 +143,35 @@ export function insideGitRepo(target: string): boolean {
 export function initGit(cwd: string): boolean {
   return git(cwd, "init");
 }
+
+// pnpm 10 and later skip dependency install scripts and fail the install unless approved
+const BUILD_SCRIPT_PACKAGES = ["@swc/core", "cypress"];
+
+export function pnpmMajor(cwd: string): number {
+  const result = spawnSync("pnpm", ["--version"], {
+    cwd,
+    encoding: "utf8",
+    shell: process.platform === "win32",
+  });
+  return Number.parseInt(result.stdout, 10);
+}
+
+export function approveBuildScripts(target: string, major: number): void {
+  const pkgPath = path.join(target, "package.json");
+  const pkg: Json = JSON.parse(readFileSync(pkgPath, "utf8"));
+  const needed = BUILD_SCRIPT_PACKAGES.filter(
+    (name) => pkg.dependencies?.[name] || pkg.devDependencies?.[name]
+  );
+  if (needed.length === 0) return;
+
+  if (major === 10) {
+    pkg.pnpm = { ...pkg.pnpm, onlyBuiltDependencies: needed };
+    writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+  } else if (major >= 11) {
+    const entries = needed.map((name) => `  "${name}": true`).join("\n");
+    writeFileSync(
+      path.join(target, "pnpm-workspace.yaml"),
+      `allowBuilds:\n${entries}\n`
+    );
+  }
+}
