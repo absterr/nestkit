@@ -77,11 +77,12 @@ const seleniumVariant = (r: Runner) => `e2e-tests/selenium/${r}-selenium`;
 
 // Mocha is configured differently per module system, so it has a folder for each
 const mochaUnit = (m: ModuleSystem) => `unit-tests/mocha/${m}-mocha`;
-const mochaConfig = (m: ModuleSystem) => `e2e-tests/config-mocha/${m}-mocha`;
+const mochaConfig = (m: ModuleSystem) =>
+  `e2e-tests/runner-configs/mocha/${m}-mocha`;
 
 // Runner config for e2e tests
 const e2eConfig = (r: Runner, m: ModuleSystem) =>
-  r === "mocha" ? mochaConfig(m) : `e2e-tests/config-${r}`;
+  r === "mocha" ? mochaConfig(m) : `e2e-tests/runner-configs/${r}`;
 
 // The parent overlay must not copy these along with its own files
 export const NESTED_OVERLAYS = [
