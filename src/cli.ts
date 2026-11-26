@@ -43,6 +43,7 @@ import {
   pnpmMajor,
   retargetNest,
   rewriteRelativeImports,
+  trustBuildScripts,
 } from "./scaffold.js";
 import {
   describeSettings,
@@ -508,6 +509,7 @@ const runner = unitTests !== "none" ? unitTests : e2eRunner;
 if (runner) addTsconfigTypes(target, RUNNER_TYPES[runner]);
 retargetNest(target, nest);
 if (pm === "pnpm") approveBuildScripts(target, pnpmMajor(target));
+if (pm === "bun") trustBuildScripts(target);
 if (moduleSystem === "esm") rewriteRelativeImports(target);
 
 if (preset === "custom") {

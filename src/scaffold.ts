@@ -144,8 +144,13 @@ export function initGit(cwd: string): boolean {
   return git(cwd, "init");
 }
 
-// pnpm 10 and later skip dependency install scripts and fail the install unless approved
+// >=pnpm 10 and bun skip dependency install scripts and fail the install unless approved
 const BUILD_SCRIPT_PACKAGES = ["@swc/core", "cypress"];
+
+const buildScriptPackages = (pkg: Json) =>
+  BUILD_SCRIPT_PACKAGES.filter(
+    (name) => pkg.dependencies?.[name] || pkg.devDependencies?.[name]
+  );
 
 export function pnpmMajor(cwd: string): number {
   const result = spawnSync("pnpm", ["--version"], {
@@ -159,9 +164,7 @@ export function pnpmMajor(cwd: string): number {
 export function approveBuildScripts(target: string, major: number): void {
   const pkgPath = path.join(target, "package.json");
   const pkg: Json = JSON.parse(readFileSync(pkgPath, "utf8"));
-  const needed = BUILD_SCRIPT_PACKAGES.filter(
-    (name) => pkg.dependencies?.[name] || pkg.devDependencies?.[name]
-  );
+  const needed = buildScriptPackages(pkg);
   if (needed.length === 0) return;
 
   if (major === 10) {
@@ -174,4 +177,15 @@ export function approveBuildScripts(target: string, major: number): void {
       `allowBuilds:\n${entries}\n`
     );
   }
+}
+
+export function trustBuildScripts(target: string): void {
+  const pkgPath = path.join(target, "package.json");
+  const pkg: Json = JSON.parse(readFileSync(pkgPath, "utf8"));
+  const needed = buildScriptPackages(pkg);
+  if (needed.length === 0) return;
+  pkg.trustedDependencies = [
+    ...new Set([...(pkg.trustedDependencies ?? []), ...needed]),
+  ];
+  writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 }

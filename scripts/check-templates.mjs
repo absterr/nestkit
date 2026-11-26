@@ -42,6 +42,7 @@ for (const nest of NEST_VERSIONS) {
                 e2e,
                 e2eRunner,
                 env,
+                agentFiles: true,
               })) {
                 used.add(o);
               }
