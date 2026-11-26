@@ -1,6 +1,6 @@
 import type { NestMajor } from "./versions.js";
 
-export const PRESETS = ["base", "recommended", "custom"] as const;
+export const PRESETS = ["base", "recommended", "previous", "custom"] as const;
 export type Preset = (typeof PRESETS)[number];
 
 export const MODULE_SYSTEMS = ["cjs", "esm"] as const;

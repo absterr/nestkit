@@ -44,13 +44,19 @@ import {
   retargetNest,
   rewriteRelativeImports,
 } from "./scaffold.js";
+import {
+  describeSettings,
+  loadSettings,
+  saveSettings,
+  type Settings,
+} from "./settings.js";
 import { resolveNest } from "./versions.js";
 
 const USAGE = [
   "Usage: nestkit new [directory]",
   "[--pm npm|pnpm|yarn|bun]",
   "[--nest-version latest|previous|11|12]",
-  "[--preset base|recommended|custom]",
+  "[--preset base|recommended|previous|custom]",
   "[--module-system cjs|esm]",
   "[--code-quality biome|eslint|oxlint|none]",
   "[--unit-tests jest|vitest|mocha|none]",
@@ -171,6 +177,8 @@ if (existsSync(target) && readdirSync(target).length > 0) {
   fail(`${target} is not empty.`);
 }
 
+const saved = loadSettings();
+
 let preset: Preset;
 if (values.preset) preset = oneOf("preset", values.preset, PRESETS);
 else if (
@@ -192,10 +200,28 @@ else {
           label: "Recommended",
           hint: "NestJS defaults for this version",
         },
+        ...(saved
+          ? [
+              {
+                value: "previous" as const,
+                label: "Previous",
+                hint: describeSettings(saved),
+              },
+            ]
+          : []),
         { value: "custom", label: "Custom", hint: "choose your tools" },
       ],
     })
   );
+}
+
+let previous: Settings | undefined;
+if (preset === "previous") {
+  previous =
+    saved ??
+    fail(
+      "No previous settings found. Use the custom preset once to save them."
+    );
 }
 
 let moduleSystem: ModuleSystem = "cjs";
@@ -207,6 +233,8 @@ if (values["module-system"]) {
   );
 } else if (preset === "recommended") {
   moduleSystem = recommendedModuleSystem(nest);
+} else if (previous) {
+  moduleSystem = previous.moduleSystem;
 } else if (process.stdin.isTTY) {
   moduleSystem = ensure(
     await p.select<ModuleSystem>({
@@ -269,6 +297,8 @@ if (values["code-quality"]) {
   codeQuality = oneOf("code-quality", values["code-quality"], CODE_QUALITY);
 } else if (preset === "recommended") {
   codeQuality = recommendedCodeQuality(nest);
+} else if (previous) {
+  codeQuality = previous.codeQuality;
 } else if (preset === "custom" && process.stdin.isTTY) {
   codeQuality = ensure(
     await p.select<CodeQuality>({
@@ -286,13 +316,10 @@ if (values["code-quality"]) {
 let unitTests: UnitTests = "none";
 if (values["unit-tests"]) {
   unitTests = oneOf("unit-tests", values["unit-tests"], UNIT_TESTS);
-  if (unitTests !== "none" && !isAvailable(unitTests)) {
-    fail(
-      `${unitTests} is not available for Nest ${nest} with ${moduleSystem}.`
-    );
-  }
 } else if (preset === "recommended") {
   unitTests = recommended;
+} else if (previous) {
+  unitTests = previous.unitTests;
 } else if (preset === "custom" && process.stdin.isTTY) {
   unitTests = ensure(
     await p.select<UnitTests>({
@@ -301,12 +328,17 @@ if (values["unit-tests"]) {
     })
   );
 }
+if (unitTests !== "none" && !isAvailable(unitTests)) {
+  fail(`${unitTests} is not available for Nest ${nest} with ${moduleSystem}.`);
+}
 
 let e2e: E2e = "none";
 if (values.e2e) {
   e2e = oneOf("e2e", values.e2e, E2E);
 } else if (preset === "recommended") {
   e2e = "supertest";
+} else if (previous) {
+  e2e = previous.e2e;
 } else if (preset === "custom" && process.stdin.isTTY) {
   e2e = ensure(
     await p.select<E2e>({
@@ -328,16 +360,17 @@ if (needsRunner(e2e)) {
   const flag = values["e2e-runner"]
     ? oneOf("e2e-runner", values["e2e-runner"], RUNNERS)
     : undefined;
+  const chosen = flag ?? previous?.e2eRunner;
   if (unitTests !== "none") {
     if (flag && flag !== unitTests) {
       fail(`--e2e-runner ${flag} conflicts with --unit-tests ${unitTests}.`);
     }
     p.log.info(`Using ${unitTests} for e2e tests.`);
-  } else if (flag) {
-    if (!isAvailable(flag)) {
-      fail(`${flag} is not available for Nest ${nest} with ${moduleSystem}.`);
+  } else if (chosen) {
+    if (!isAvailable(chosen)) {
+      fail(`${chosen} is not available for Nest ${nest} with ${moduleSystem}.`);
     }
-    e2eRunner = flag;
+    e2eRunner = chosen;
   } else if (process.stdin.isTTY) {
     e2eRunner = ensure(
       await p.select<Runner>({
@@ -353,6 +386,8 @@ if (needsRunner(e2e)) {
 let env: Env = "none";
 if (values.env) {
   env = oneOf("env", values.env, ENV);
+} else if (previous) {
+  env = previous.env;
 } else if (preset === "custom" && process.stdin.isTTY) {
   const wantsEnv = ensure(
     await p.confirm({
@@ -416,6 +451,20 @@ if (runner) addTsconfigTypes(target, RUNNER_TYPES[runner]);
 retargetNest(target, nest);
 if (pm === "pnpm") approveBuildScripts(target, pnpmMajor(target));
 if (moduleSystem === "esm") rewriteRelativeImports(target);
+
+if (preset === "custom") {
+  const settings: Settings = {
+    moduleSystem,
+    codeQuality,
+    unitTests,
+    e2e,
+    e2eRunner,
+    env,
+  };
+  if (!saveSettings(settings)) {
+    p.log.warn("Could not save settings for next time.");
+  }
+}
 
 if (useInstall) {
   p.log.step(`Installing dependencies with ${pm}`);
