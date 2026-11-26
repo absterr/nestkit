@@ -272,6 +272,27 @@ const runnerOptions = runnersFor(nest, moduleSystem).map((value) => ({
 const isAvailable = (runner: Runner) =>
   runnerOptions.some((o) => o.value === runner);
 
+// Reject bad flag and saved combinations now, before any further prompt
+const requestedUnitTests = values["unit-tests"]
+  ? oneOf("unit-tests", values["unit-tests"], UNIT_TESTS)
+  : previous?.unitTests;
+if (
+  requestedUnitTests &&
+  requestedUnitTests !== "none" &&
+  !isAvailable(requestedUnitTests)
+) {
+  fail(
+    `${requestedUnitTests} is not available for Nest ${nest} with ${moduleSystem}.`
+  );
+}
+
+const requestedEnv = values.env ? oneOf("env", values.env, ENV) : previous?.env;
+if (requestedEnv === "arktype" && moduleSystem !== "esm") {
+  fail(
+    "ArkType is ESM only. Use --module-system esm or choose another library."
+  );
+}
+
 const MODULE_LABELS: Record<ModuleSystem, string> = {
   cjs: "CommonJS",
   esm: "ESM",
@@ -337,9 +358,6 @@ if (values["unit-tests"]) {
       options: [...runnerOptions, { value: "none", label: "None" }],
     })
   );
-}
-if (unitTests !== "none" && !isAvailable(unitTests)) {
-  fail(`${unitTests} is not available for Nest ${nest} with ${moduleSystem}.`);
 }
 
 let e2e: E2e = "none";
@@ -439,12 +457,6 @@ if (values.env) {
       })
     );
   }
-}
-
-if (env === "arktype" && moduleSystem !== "esm") {
-  fail(
-    "ArkType is ESM only. Use --module-system esm or choose another library."
-  );
 }
 
 let agentFiles = false;
