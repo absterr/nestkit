@@ -1,7 +1,7 @@
 {
   "scripts": {
-    "test": "vitest",
-    "test:run": "vitest run",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:cov": "vitest run --coverage"
   },
   "devDependencies": {

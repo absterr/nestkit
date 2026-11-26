@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "test:run": "mocha",
+    "test": "mocha",
     "test:cov": "c8 mocha"
   },
   "devDependencies": {
