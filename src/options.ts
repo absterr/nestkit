@@ -1,6 +1,6 @@
 import type { NestMajor } from "./versions.js";
 
-export const PRESETS = ["base", "custom"] as const;
+export const PRESETS = ["base", "recommended", "custom"] as const;
 export type Preset = (typeof PRESETS)[number];
 
 export const MODULE_SYSTEMS = ["cjs", "esm"] as const;
@@ -51,6 +51,12 @@ export const recommendedRunner = (
   nest: NestMajor,
   moduleSystem: ModuleSystem
 ): Runner => (nest === "11" && moduleSystem === "cjs" ? "jest" : "vitest");
+
+// What nest new picks for each Nest version
+export const recommendedModuleSystem = (nest: NestMajor): ModuleSystem =>
+  nest === "11" ? "cjs" : "esm";
+export const recommendedCodeQuality = (nest: NestMajor): CodeQuality =>
+  nest === "11" ? "eslint" : "oxlint";
 
 // Packages TypeScript 6 must load for each runner's globals.
 export const RUNNER_TYPES: Record<Runner, string[]> = {

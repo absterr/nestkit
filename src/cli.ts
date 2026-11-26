@@ -14,6 +14,8 @@ import {
   UNIT_TESTS,
   needsRunner,
   overlaysFor,
+  recommendedCodeQuality,
+  recommendedModuleSystem,
   recommendedRunner,
   runnersFor,
   type CodeQuality,
@@ -48,8 +50,8 @@ const USAGE = [
   "Usage: nestkit new [directory]",
   "[--pm npm|pnpm|yarn|bun]",
   "[--nest-version latest|previous|11|12]",
+  "[--preset base|recommended|custom]",
   "[--module-system cjs|esm]",
-  "[--preset base|custom]",
   "[--code-quality biome|eslint|oxlint|none]",
   "[--unit-tests jest|vitest|mocha|none]",
   "[--e2e supertest|playwright|cypress|selenium|none]",
@@ -185,6 +187,11 @@ else {
       message: "Preset",
       options: [
         { value: "base", label: "Base", hint: "plain NestJS, no extras" },
+        {
+          value: "recommended",
+          label: "Recommended",
+          hint: "NestJS defaults for this version",
+        },
         { value: "custom", label: "Custom", hint: "choose your tools" },
       ],
     })
@@ -198,6 +205,8 @@ if (values["module-system"]) {
     values["module-system"],
     MODULE_SYSTEMS
   );
+} else if (preset === "recommended") {
+  moduleSystem = recommendedModuleSystem(nest);
 } else if (process.stdin.isTTY) {
   moduleSystem = ensure(
     await p.select<ModuleSystem>({
@@ -258,6 +267,8 @@ const withNote = (message: string) => {
 let codeQuality: CodeQuality = "none";
 if (values["code-quality"]) {
   codeQuality = oneOf("code-quality", values["code-quality"], CODE_QUALITY);
+} else if (preset === "recommended") {
+  codeQuality = recommendedCodeQuality(nest);
 } else if (preset === "custom" && process.stdin.isTTY) {
   codeQuality = ensure(
     await p.select<CodeQuality>({
@@ -280,6 +291,8 @@ if (values["unit-tests"]) {
       `${unitTests} is not available for Nest ${nest} with ${moduleSystem}.`
     );
   }
+} else if (preset === "recommended") {
+  unitTests = recommended;
 } else if (preset === "custom" && process.stdin.isTTY) {
   unitTests = ensure(
     await p.select<UnitTests>({
@@ -292,6 +305,8 @@ if (values["unit-tests"]) {
 let e2e: E2e = "none";
 if (values.e2e) {
   e2e = oneOf("e2e", values.e2e, E2E);
+} else if (preset === "recommended") {
+  e2e = "supertest";
 } else if (preset === "custom" && process.stdin.isTTY) {
   e2e = ensure(
     await p.select<E2e>({
