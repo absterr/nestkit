@@ -3,7 +3,7 @@ import { Test, TestingModule } from "@nestjs/testing";
 import { after, before, describe, it } from "mocha";
 import request from "supertest";
 import { App } from "supertest/types";
-import { AppModule } from "../src/app/app.module";
+import { AppModule } from "../src/app.module";
 
 describe("AppController (e2e)", () => {
   let app: INestApplication<App>;
