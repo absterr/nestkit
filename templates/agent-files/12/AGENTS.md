@@ -4,6 +4,8 @@
 
 This project's version of NestJS may be newer than what you know. Check the version in `package.json` and verify APIs against the installed packages. https://docs.nestjs.com/llms.txt indexes the documentation as markdown, one page per chapter.
 
+Optional: You can add the official NestJS agent skills by running `npx @nestjs/skills@latest add --agent all` in the project.
+
 Nest has first-party packages for these, so check them before adding another library or writing your own:
 
 - Databases: [`@nestjs/typeorm`](https://docs.nestjs.com/data/typeorm.md), [`@nestjs/drizzle`](https://docs.nestjs.com/data/drizzle.md), [`@nestjs/mongoose`](https://docs.nestjs.com/data/mongodb.md), [`@nestjs/sequelize`](https://docs.nestjs.com/data/sequelize.md).

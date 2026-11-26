@@ -62,7 +62,7 @@ const USAGE = [
   "[--unit-tests jest|vitest|mocha|none]",
   "[--e2e supertest|playwright|cypress|selenium|none]",
   "[--e2e-runner jest|vitest|mocha]",
-  "[--env joi|class-validator|zod|vanilla|none]",
+  "[--env joi|class-validator|zod|valibot|arktype|vanilla|none]",
   "[--agent-files|--skip-agent-files]",
   "[--git|--skip-git]",
   "[--skip-install]",
@@ -408,7 +408,10 @@ if (values.env) {
   if (wantsEnv) {
     env = ensure(
       await p.select<Env>({
-        message: "Validation library",
+        message:
+          moduleSystem === "cjs"
+            ? "Validation library (ArkType is not available with CommonJS)"
+            : "Validation library",
         options: [
           { value: "joi", label: "Joi" },
           {
@@ -417,6 +420,16 @@ if (values.env) {
             hint: "with class-transformer",
           },
           { value: "zod", label: "Zod" },
+          { value: "valibot", label: "Valibot" },
+          ...(moduleSystem === "esm"
+            ? [
+                {
+                  value: "arktype" as const,
+                  label: "ArkType",
+                  hint: "ESM-only package",
+                },
+              ]
+            : []),
           {
             value: "vanilla",
             label: "None",
@@ -426,6 +439,12 @@ if (values.env) {
       })
     );
   }
+}
+
+if (env === "arktype" && moduleSystem !== "esm") {
+  fail(
+    "ArkType is ESM only. Use --module-system esm or choose another library."
+  );
 }
 
 let agentFiles = false;
@@ -502,12 +521,6 @@ if (useInstall) {
 
 if (useGit && !initGit(target)) {
   p.log.warn("Could not initialize a git repository.");
-}
-
-if (agentFiles) {
-  p.log.info(
-    "Optional: You can add the official NestJS agent skills by running `npx @nestjs/skills@latest add --agent all` in the project."
-  );
 }
 
 const relative = path.relative(process.cwd(), target);

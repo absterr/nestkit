@@ -28,6 +28,8 @@ export const ENV = [
   "joi",
   "class-validator",
   "zod",
+  "valibot",
+  "arktype",
   "vanilla",
   "none",
 ] as const;
