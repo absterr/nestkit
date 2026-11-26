@@ -63,6 +63,7 @@ const USAGE = [
   "[--e2e supertest|playwright|cypress|selenium|none]",
   "[--e2e-runner jest|vitest|mocha]",
   "[--env joi|class-validator|zod|vanilla|none]",
+  "[--agent-files|--skip-agent-files]",
   "[--git|--skip-git]",
   "[--skip-install]",
 ].join(" ");
@@ -116,6 +117,8 @@ const { positionals, values } = parseArgs({
     e2e: { type: "string" },
     "e2e-runner": { type: "string" },
     env: { type: "string" },
+    "agent-files": { type: "boolean" },
+    "skip-agent-files": { type: "boolean" },
     git: { type: "boolean" },
     "skip-git": { type: "boolean" },
     "skip-install": { type: "boolean" },
@@ -425,6 +428,22 @@ if (values.env) {
   }
 }
 
+let agentFiles = false;
+if (values["skip-agent-files"]) {
+  agentFiles = false;
+} else if (values["agent-files"] || preset === "recommended") {
+  agentFiles = true;
+} else if (previous) {
+  agentFiles = previous.agentFiles;
+} else if (preset === "custom" && process.stdin.isTTY) {
+  agentFiles = ensure(
+    await p.confirm({
+      message: "Add AGENTS.md and CLAUDE.md for coding agents?",
+      initialValue: true,
+    })
+  );
+}
+
 const hasGit = gitInstalled();
 if (!hasGit && !values["skip-git"]) {
   p.log.warn("git not found, skipping repository setup.");
@@ -450,6 +469,7 @@ for (const overlay of overlaysFor({
   e2e,
   e2eRunner,
   env,
+  agentFiles,
 })) {
   applyOverlay(overlay, target);
 }
@@ -467,6 +487,7 @@ if (preset === "custom") {
     e2e,
     e2eRunner,
     env,
+    agentFiles,
   };
   if (!saveSettings(settings)) {
     p.log.warn("Could not save settings for next time.");
@@ -481,6 +502,12 @@ if (useInstall) {
 
 if (useGit && !initGit(target)) {
   p.log.warn("Could not initialize a git repository.");
+}
+
+if (agentFiles) {
+  p.log.info(
+    "Optional: You can add the official NestJS agent skills by running `npx @nestjs/skills@latest add --agent all` in the project."
+  );
 }
 
 const relative = path.relative(process.cwd(), target);

@@ -23,6 +23,7 @@ export interface Settings {
   e2e: E2e;
   e2eRunner?: Runner;
   env: Env;
+  agentFiles: boolean;
 }
 
 const FILE = path.join(homedir(), ".nestkit", "settings.json");
@@ -35,8 +36,15 @@ const isOneOf = <T extends string>(
 // Undefined when nothing is saved or the file is unreadable or out of date
 export function loadSettings(): Settings | undefined {
   try {
-    const { moduleSystem, codeQuality, unitTests, e2e, e2eRunner, env } =
-      JSON.parse(readFileSync(FILE, "utf8"));
+    const {
+      moduleSystem,
+      codeQuality,
+      unitTests,
+      e2e,
+      e2eRunner,
+      env,
+      agentFiles,
+    } = JSON.parse(readFileSync(FILE, "utf8"));
     if (
       isOneOf(MODULE_SYSTEMS, moduleSystem) &&
       isOneOf(CODE_QUALITY, codeQuality) &&
@@ -45,7 +53,15 @@ export function loadSettings(): Settings | undefined {
       (e2eRunner === undefined || isOneOf(RUNNERS, e2eRunner)) &&
       isOneOf(ENV, env)
     ) {
-      return { moduleSystem, codeQuality, unitTests, e2e, e2eRunner, env };
+      return {
+        moduleSystem,
+        codeQuality,
+        unitTests,
+        e2e,
+        e2eRunner,
+        env,
+        agentFiles: agentFiles === true,
+      };
     }
     return undefined;
   } catch {
@@ -64,6 +80,13 @@ export function saveSettings(settings: Settings): boolean {
 }
 
 export const describeSettings = (s: Settings): string =>
-  [s.moduleSystem, s.codeQuality, s.unitTests, s.e2e, s.env]
+  [
+    s.moduleSystem,
+    s.codeQuality,
+    s.unitTests,
+    s.e2e,
+    s.env,
+    s.agentFiles ? "agent files" : "none",
+  ]
     .filter((value) => value !== "none")
     .join(", ");

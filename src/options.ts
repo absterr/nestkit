@@ -109,6 +109,7 @@ export function overlaysFor(s: {
   e2e: E2e;
   e2eRunner?: Runner;
   env: Env;
+  agentFiles: boolean;
 }): string[] {
   const runner = s.unitTests !== "none" ? s.unitTests : s.e2eRunner;
   const overlays: string[] = [];
@@ -152,5 +153,9 @@ export function overlaysFor(s: {
   if (s.env !== "none") {
     overlays.push("environment/common", `environment/${s.env}`);
   }
+
+  if (s.agentFiles)
+    overlays.push("agent-files/common", `agent-files/${s.nest}`);
+
   return overlays;
 }
