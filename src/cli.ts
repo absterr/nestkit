@@ -492,7 +492,7 @@ const useGit =
 const useInstall = !values["skip-install"];
 
 const projectName = path.basename(target).toLowerCase().replace(/\s+/g, "-");
-copyBase(target, projectName);
+copyBase(target, projectName, pm);
 for (const overlay of overlaysFor({
   nest,
   moduleSystem,

@@ -26,7 +26,26 @@ const sortKeys = (obj: Json): Json =>
     Object.entries(obj).sort(([a], [b]) => a.localeCompare(b))
   );
 
-export function copyBase(target: string, projectName: string): void {
+const EXEC: Record<PackageManager, string> = {
+  npm: "npx",
+  pnpm: "pnpm exec",
+  yarn: "yarn",
+  bun: "bunx",
+};
+
+function fill(file: string, tokens: Record<string, string>): void {
+  let text = readFileSync(file, "utf8");
+  for (const [key, value] of Object.entries(tokens)) {
+    text = text.replaceAll(`{{${key}}}`, value);
+  }
+  writeFileSync(file, text);
+}
+
+export function copyBase(
+  target: string,
+  projectName: string,
+  pm: PackageManager
+): void {
   cpSync(path.join(TEMPLATES, "base"), target, { recursive: true });
 
   // npm strips .gitignore from published packages, so it ships as "gitignore"
@@ -34,12 +53,8 @@ export function copyBase(target: string, projectName: string): void {
     renameSync(path.join(target, name), path.join(target, `.${name}`));
   }
 
-  const pkgPath = path.join(target, "package.json");
-  const pkg = readFileSync(pkgPath, "utf8").replaceAll(
-    "{{projectName}}",
-    projectName
-  );
-  writeFileSync(pkgPath, pkg);
+  fill(path.join(target, "package.json"), { projectName });
+  fill(path.join(target, "README.md"), { pm, exec: EXEC[pm] });
 }
 
 // Copies the overlay's files, merges its package.json fragment and appends its gitignore
