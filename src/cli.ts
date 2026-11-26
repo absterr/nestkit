@@ -240,12 +240,19 @@ if (values["module-system"]) {
     await p.select<ModuleSystem>({
       message: "Module system",
       options: [
-        { value: "cjs", label: "CommonJS" },
+        {
+          value: "cjs",
+          label: "CommonJS",
+          hint:
+            recommendedModuleSystem(nest) === "cjs" ? "recommended" : undefined,
+        },
         {
           value: "esm",
           label: "ESM",
           hint:
-            nest === "11" ? "not officially supported by Nest 11" : undefined,
+            recommendedModuleSystem(nest) === "esm"
+              ? "recommended"
+              : "not officially supported by Nest 11",
         },
       ],
     })
@@ -344,7 +351,7 @@ if (values.e2e) {
     await p.select<E2e>({
       message: "End-to-end tests",
       options: [
-        { value: "supertest", label: "Supertest", hint: "HTTP, no browser" },
+        { value: "supertest", label: "Supertest", hint: "HTTP, recommended" },
         { value: "playwright", label: "Playwright" },
         { value: "cypress", label: "Cypress" },
         { value: "selenium", label: "Selenium" },
