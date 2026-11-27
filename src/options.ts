@@ -116,11 +116,7 @@ export function overlaysFor(s: {
   const runner = s.unitTests !== "none" ? s.unitTests : s.e2eRunner;
   const overlays: string[] = [];
 
-  overlays.push(
-    `versions/${s.nest}`,
-    `${s.moduleSystem}-module`,
-    ...CODE_QUALITY_OVERLAYS[s.codeQuality]
-  );
+  overlays.push(`versions/${s.nest}`, ...CODE_QUALITY_OVERLAYS[s.codeQuality]);
 
   if (runner) {
     overlays.push("test-runners/common", `test-runners/${runner}`);

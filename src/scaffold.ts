@@ -106,6 +106,13 @@ export function retargetNest(target: string, nest: NestMajor): void {
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
+export function enableEsm(target: string): void {
+  const pkgPath = path.join(target, "package.json");
+  const pkg: Json = JSON.parse(readFileSync(pkgPath, "utf8"));
+  pkg.type = "module";
+  writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+}
+
 // ESM needs explicit extensions on relative imports. Templates are written without them.
 export function rewriteRelativeImports(target: string): void {
   for (const rel of readdirSync(target, {

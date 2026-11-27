@@ -36,6 +36,7 @@ import {
   applyOverlay,
   approveBuildScripts,
   copyBase,
+  enableEsm,
   gitInstalled,
   initGit,
   insideGitRepo,
@@ -510,7 +511,10 @@ if (runner) addTsconfigTypes(target, RUNNER_TYPES[runner]);
 retargetNest(target, nest);
 if (pm === "pnpm") approveBuildScripts(target, pnpmMajor(target));
 if (pm === "bun") trustBuildScripts(target);
-if (moduleSystem === "esm") rewriteRelativeImports(target);
+if (moduleSystem === "esm") {
+  enableEsm(target);
+  rewriteRelativeImports(target);
+}
 
 if (preset === "custom") {
   const settings: Settings = {
