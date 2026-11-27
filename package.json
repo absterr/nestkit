@@ -1,7 +1,24 @@
 {
-  "name": "nestkit",
-  "version": "0.0.1",
+  "name": "@absterr/nestkit",
+  "version": "0.1.0",
   "description": "Scaffold NestJS projects with your own stack",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/absterr/nestkit.git"
+  },
+  "bugs": {
+    "url": "https://github.com/absterr/nestkit/issues"
+  },
+  "homepage": "https://github.com/absterr/nestkit#readme",
+  "keywords": [
+    "nestjs",
+    "nest",
+    "scaffold",
+    "cli",
+    "generator",
+    "starter"
+  ],
+  "license": "MIT",
   "type": "module",
   "bin": {
     "nestkit": "dist/cli.js"
@@ -13,10 +30,14 @@
   "engines": {
     "node": ">=22.12"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "check:templates": "node scripts/check-templates.mjs"
+    "check:templates": "node scripts/check-templates.mjs",
+    "prepack": "npm run build && npm run check:templates"
   },
   "dependencies": {
     "@clack/prompts": "^1.9.0"
@@ -24,6 +45,5 @@
   "devDependencies": {
     "@types/node": "^22.20.5",
     "typescript": "^6.0.3"
-  },
-  "license": "MIT"
+  }
 }
