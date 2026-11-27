@@ -2,7 +2,7 @@
  * Verifies every overlay the CLI can request exists, finds template files nothing
  * uses, and lists the base files that overlays overwrite. Run after `bun run build`.
  */
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -10,13 +10,13 @@ import {
   E2E,
   ENV,
   MODULE_SYSTEMS,
-  NESTED_OVERLAYS,
-  UNIT_TESTS,
   needsRunner,
+  NESTED_OVERLAYS,
   overlaysFor,
   runnersFor,
+  UNIT_TESTS,
 } from "../dist/options.js";
-import { NEST_VERSIONS } from "../dist/versions.js";
+import { NEST_VERSIONS, RANGES } from "../dist/versions.js";
 
 const TEMPLATES = fileURLToPath(new URL("../templates", import.meta.url));
 const abs = (name) => path.join(TEMPLATES, name);
@@ -92,6 +92,21 @@ for (const u of usedAbs) {
   }
 }
 
+// A "*" placeholder is only safe if every Nest major has a range for it
+const unresolved = [];
+for (const file of files(TEMPLATES).filter(
+  (f) => path.basename(f) === "package.json"
+)) {
+  const pkg = JSON.parse(readFileSync(file, "utf8"));
+  for (const field of ["dependencies", "devDependencies"]) {
+    for (const [name, range] of Object.entries(pkg[field] ?? {})) {
+      if (range === "*" && NEST_VERSIONS.some((v) => !RANGES[v][name])) {
+        unresolved.push(`${path.relative(TEMPLATES, file)}: ${name}`);
+      }
+    }
+  }
+}
+
 console.log(`Overlays referenced by the CLI: ${used.size}`);
 console.log(
   missing.length
@@ -108,4 +123,10 @@ console.log(
     ? `\nOverlays overwriting base files (review):\n  ${[...new Set(overwrites)].sort().join("\n  ")}`
     : "\nOverwrites of base files: none"
 );
-process.exit(missing.length || orphans.length ? 1 : 0);
+console.log(
+  unresolved.length
+    ? `\nUNRESOLVED "*" (no range in RANGES):\n  ${unresolved.join("\n  ")}`
+    : '\nUnresolved "*" placeholders: none'
+);
+
+process.exit(missing.length || orphans.length || unresolved.length ? 1 : 0);

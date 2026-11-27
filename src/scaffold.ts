@@ -94,8 +94,8 @@ function mergePackageJson(target: string, fragmentPath: string): void {
   writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
 }
 
-// Templates are authored for Nest 11. Point the Nest-owned packages at the chosen major.
-export function retargetNest(target: string, nest: NestMajor): void {
+// Point the Nest-owned packages at the chosen major.
+export function targetNestMajor(target: string, nest: NestMajor): void {
   const pkgPath = path.join(target, "package.json");
   const pkg: Json = JSON.parse(readFileSync(pkgPath, "utf8"));
   for (const field of ["dependencies", "devDependencies"]) {
